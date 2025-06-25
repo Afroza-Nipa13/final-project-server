@@ -1,7 +1,7 @@
 const dotenv = require("dotenv");
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 dotenv.config();
 
@@ -21,13 +21,13 @@ const client = new MongoClient(uri, {
   }
 });
 
-let parcelCollection; 
+let parcelCollection;
 
 async function run() {
   try {
-    await client.connect(); 
+    await client.connect();
     const db = client.db("parcelDB");
-    parcelCollection = db.collection("parcels"); 
+    parcelCollection = db.collection("parcels");
 
     console.log("✅ Connected to MongoDB");
 
@@ -53,6 +53,35 @@ app.post("/parcels", async (req, res) => {
     console.error("❌ Error inserting parcel:", err.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
+});
+
+// parcels api
+
+app.get("/parcels", async (req, res) => {
+  try {
+    const userEmail = req.query.email;
+
+    if (!userEmail) {
+      return res.status(400).json({ error: "Email query parameter is required" });
+    }
+
+    const parcels = await parcelCollection
+      .find({ created_by: userEmail })
+      .sort({ creation_date: -1 }) // 🔽 Latest first
+      .toArray();
+
+    res.send(parcels);
+  } catch (err) {
+    console.error("❌ Error fetching parcels:", err.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+app.delete('/parcels/:id', async (req, res) => {
+  const id = req.params.id;
+  const result = await parcelCollection.deleteOne({ _id: new ObjectId(id) });
+  res.send(result);
 });
 
 // Default Route
